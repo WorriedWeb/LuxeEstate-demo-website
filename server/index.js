@@ -1,3 +1,4 @@
+
 import 'dotenv/config';
 import express from 'express';
 import mongoose from 'mongoose';
@@ -14,9 +15,28 @@ app.use(cors());
 app.use(bodyParser.json({ limit: '10mb' })); // Increased limit for Base64 images
 
 // Database Connection
+console.log('Attempting to connect to MongoDB...');
 mongoose.connect(MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch(err => console.error('MongoDB connection error:', err));
+  .then(() => {
+      console.log('Connected to MongoDB successfully');
+
+      try {
+          const isAtlas = MONGODB_URI.includes('mongodb+srv://');
+          if (isAtlas) {
+              const cluster = MONGODB_URI.split('@')[1].split('/')[0];
+              console.log(`Connected to: MongoDB Atlas Cluster (${cluster})`);
+          } else {
+              console.log('Connected to: Local MongoDB (mongodb://localhost:27017)');
+          }
+      } catch (e) {
+          console.log("Connected, but could not parse DB URL");
+      }
+  })
+
+  .catch(err => {
+      console.error('MongoDB connection error:', err);
+      console.log('Server will start, but database features will fail.');
+  });
 
 // Routes
 

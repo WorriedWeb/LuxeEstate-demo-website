@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { mockService } from '../../services/mockService';
 import { Agent, AgentStatus } from '../../types';
@@ -24,7 +25,7 @@ export const AgentsAdmin: React.FC = () => {
       avatar: ''
   });
   
-  // Validation & Feedback
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [notification, setNotification] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
 
@@ -60,13 +61,30 @@ export const AgentsAdmin: React.FC = () => {
           name: agent.name,
           email: agent.email,
           phone: agent.phone || '',
-          password: '', // Do not populate password on edit for security
+          password: '',
           licenseNumber: agent.licenseNumber || '',
           bio: agent.bio || '',
           avatar: agent.avatar || ''
       });
       setErrors({});
       setIsFormModalOpen(true);
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+          const file = e.target.files[0];
+          setUploadingImage(true);
+          try {
+              const imageUrl = await mockService.uploadImage(file);
+              setFormData({ ...formData, avatar: imageUrl });
+              showNotification("Image uploaded successfully", 'success');
+          } catch (error) {
+              console.error(error);
+              showNotification("Failed to upload image", 'error');
+          } finally {
+              setUploadingImage(false);
+          }
+      }
   };
 
   const validateForm = () => {
@@ -101,7 +119,6 @@ export const AgentsAdmin: React.FC = () => {
               avatar: formData.avatar || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=256&q=80'
           };
           
-          // Remove password if empty (user didn't want to change it during edit)
           if (editingId && !payload.password) {
               delete payload.password;
           }
@@ -329,13 +346,21 @@ export const AgentsAdmin: React.FC = () => {
                         </div>
 
                         <div>
-                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Profile Photo URL</label>
-                            <input 
-                                type="text" 
-                                placeholder="https://..."
-                                className="w-full border border-gray-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                value={formData.avatar} onChange={e => setFormData({...formData, avatar: e.target.value})}
-                            />
+                            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Profile Photo</label>
+                            <div className="flex gap-4 items-start">
+                                {formData.avatar && (
+                                    <img src={formData.avatar} alt="Preview" className="w-12 h-12 rounded-full object-cover border border-gray-200" />
+                                )}
+                                <div className="flex-1">
+                                    <input 
+                                        type="file" accept="image/*"
+                                        onChange={handleFileUpload}
+                                        disabled={uploadingImage}
+                                        className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+                                    />
+                                    {uploadingImage && <div className="text-xs text-blue-600 mt-1 font-bold"><i className="fas fa-spinner animate-spin"></i> Uploading...</div>}
+                                </div>
+                            </div>
                         </div>
 
                         <div>
@@ -357,7 +382,8 @@ export const AgentsAdmin: React.FC = () => {
                             </button>
                             <button 
                                 type="submit"
-                                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-md"
+                                disabled={uploadingImage}
+                                className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-700 transition shadow-md disabled:opacity-50"
                             >
                                 {editingId ? 'Save Changes' : 'Create Advisor'}
                             </button>
@@ -396,7 +422,7 @@ export const AgentsAdmin: React.FC = () => {
              </div>
         )}
 
-        {/* Reassign Listings Modal (Triggered by Delete or Status change if active listings exist) */}
+        {/* Reassign Listings Modal */}
         {reassignModal && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                 <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-fade-in-up">

@@ -1,7 +1,9 @@
+
 import { MOCK_PROPERTIES, MOCK_AGENTS, MOCK_LEADS, MOCK_USERS, MOCK_BLOG_POSTS } from '../constants';
 import { Property, Lead, Agent, User, PropertyStatus, AgentStatus, UserRole, BlogPost } from '../types';
+import config from '../config';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = config.API_BASE_URL;
 
 // Simple delay helper to simulate network latency
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -20,7 +22,6 @@ class MockService {
   private agents: Agent[] = [];
   private users: User[] = [];
   private blogPosts: BlogPost[] = [];
-  private initialized = false;
   private useApi = false;
 
   constructor() {
@@ -32,12 +33,13 @@ class MockService {
     try {
         const res = await fetch(`${API_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(2000) });
         if (res.ok) {
-            console.log("Connected to Backend API");
+            console.log("Connected to Backend API at", API_URL);
             this.useApi = true;
             return;
         }
     } catch (e) {
-        console.log("Backend offline, falling back to LocalStorage");
+        // Backend offline, falling back to LocalStorage
+        console.log("Backend offline or unreachable. Using LocalStorage fallback.");
         this.useApi = false;
     }
 
@@ -51,7 +53,7 @@ class MockService {
                 ...p,
                 location: {
                     ...p.location,
-                    country: (p.location as any).country || 'USA'
+                    country: (p.location as any).country || 'India'
                 }
             }));
         }
@@ -68,7 +70,6 @@ class MockService {
         const storedBlog = localStorage.getItem(STORAGE_KEYS.BLOG);
         this.blogPosts = storedBlog ? JSON.parse(storedBlog) : [...MOCK_BLOG_POSTS];
 
-        this.initialized = true;
     } catch (e) {
         console.error("Initialization error (likely quota):", e);
         // Fallback to mocks in memory if storage is broken
@@ -81,12 +82,12 @@ class MockService {
   }
 
   private save(key: string, data: any) {
-    if (this.useApi) return; // Should not happen in save() unless mixed logic
+    if (this.useApi) return; 
     try {
         localStorage.setItem(key, JSON.stringify(data));
     } catch (e: any) {
         if (e.name === 'QuotaExceededError' || e.code === 22) {
-             throw new Error("Storage Limit Exceeded! The browser's LocalStorage is full. Please delete some items or use image URLs.");
+             throw new Error("Storage Limit Exceeded! The browser's LocalStorage is full. Please delete some items or use Cloudinary for images.");
         }
         console.error("Save failed:", e);
         throw e;
@@ -95,11 +96,10 @@ class MockService {
 
   // --- IMAGE UPLOAD SERVICE ---
   async uploadImage(file: File): Promise<string> {
-      // Cloudinary configuration (Try to use environment variables or defaults)
-      const CLOUD_NAME = process.env.REACT_APP_CLOUDINARY_CLOUD_NAME; 
-      const UPLOAD_PRESET = process.env.REACT_APP_CLOUDINARY_UPLOAD_PRESET; 
+      // Cloudinary configuration from centralized config
+      const { CLOUD_NAME, UPLOAD_PRESET } = config.CLOUDINARY;
 
-      if (CLOUD_NAME && UPLOAD_PRESET) {
+      if (CLOUD_NAME && UPLOAD_PRESET && !CLOUD_NAME.includes('your_cloud_name')) {
           try {
               const formData = new FormData();
               formData.append('file', file);
@@ -117,6 +117,8 @@ class MockService {
           } catch (error) {
               console.warn("Cloudinary upload failed, falling back to local compression.", error);
           }
+      } else {
+          console.warn("Cloudinary credentials missing or default in .env. Using local fallback.");
       }
 
       // Fallback: Local Canvas Compression (to Base64)
@@ -343,20 +345,15 @@ class MockService {
         // Filter Logic
         if (currentUser) {
             if (currentUser.role === UserRole.AGENT) {
-                // Fetch properties to see which ones belong to this agent
                 const propsRes = await fetch(`${API_URL}/properties?agentId=${currentUser.id}`);
                 const myProps: Property[] = await propsRes.json();
                 const myPropIds = myProps.map(p => p.id);
                 
-                // Agents see:
-                // 1. Leads on their properties
-                // 2. Leads manually assigned to them
                 allLeads = allLeads.filter((l: Lead) => 
                     (l.propertyId && myPropIds.includes(l.propertyId)) || 
                     l.assignedAgentId === currentUser.id
                 );
             }
-            // Admin sees everything
         }
         return allLeads;
     }
@@ -503,7 +500,6 @@ class MockService {
       this.init();
       await delay(400);
 
-      // Check if active listings exist
       const hasListings = this.properties.some(p => p.agentId === id);
       if (hasListings) {
           const count = this.properties.filter(p => p.agentId === id).length;
@@ -552,7 +548,6 @@ class MockService {
           
           if (oldAgentIdx > -1) this.agents[oldAgentIdx].listingsCount = 0;
           if (newAgentIdx > -1) {
-              // Simple count for demo, ideally filter properties
                this.agents[newAgentIdx].listingsCount = this.properties.filter(p => p.agentId === newAgentId).length;
           }
           this.save(STORAGE_KEYS.AGENTS, this.agents);

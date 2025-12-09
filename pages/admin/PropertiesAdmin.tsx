@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Property, PropertyStatus, UserRole, AgentStatus } from '../../types';
 import { mockService } from '../../services/mockService';
 import { useAuth } from '../../services/auth';
 import { Notification } from '../../components/Notification';
+import { CURRENCY_SYMBOL } from '../../config';
 
 // Declare Leaflet globally since we import it via script tag
 declare const L: any;
@@ -21,7 +23,7 @@ export const PropertiesAdmin: React.FC = () => {
     status: PropertyStatus.FOR_SALE, 
     type: 'House',
     description: '',
-    location: { address: '', city: '', state: '', zip: '', country: 'USA', lat: 34.0522, lng: -118.2437 },
+    location: { address: '', city: 'Mumbai', state: 'MH', zip: '', country: 'India', lat: 19.0760, lng: 72.8777 },
     features: { bedrooms: 3, bathrooms: 2, sqft: 2000, yearBuilt: 2024 },
     images: [],
     amenities: [], 
@@ -64,9 +66,9 @@ export const PropertiesAdmin: React.FC = () => {
     // Only initialize map if modal is open, tab is location, and map container exists
     if (isModalOpen && activeTab === 'location' && mapContainerRef.current && !mapInstanceRef.current) {
         
-        // Default to LA if no coords, or current property coords
-        const lat = formData.location?.lat || 34.0522;
-        const lng = formData.location?.lng || -118.2437;
+        // Default to Mumbai if no coords, or current property coords
+        const lat = formData.location?.lat || 19.0760;
+        const lng = formData.location?.lng || 72.8777;
 
         // Init Map
         const map = L.map(mapContainerRef.current).setView([lat, lng], 13);
@@ -347,7 +349,7 @@ export const PropertiesAdmin: React.FC = () => {
                                 </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="text-sm font-bold text-gray-900">${p.price.toLocaleString()}</div>
+                                <div className="text-sm font-bold text-gray-900">{CURRENCY_SYMBOL}{p.price.toLocaleString()}</div>
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1
                                     ${p.status === 'FOR_SALE' ? 'bg-green-100 text-green-800' : 
                                       p.status === 'SOLD' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}>
@@ -391,7 +393,11 @@ export const PropertiesAdmin: React.FC = () => {
                       </div>
                       <div className="flex gap-3">
                           <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold transition">Cancel</button>
-                          <button onClick={handleSave} className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition">
+                          <button 
+                            onClick={handleSave} 
+                            disabled={uploadingImage}
+                            className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 shadow-lg shadow-blue-600/30 transition disabled:opacity-50"
+                          >
                               {editingId ? 'Save Changes' : 'Publish Listing'}
                           </button>
                       </div>
@@ -426,7 +432,7 @@ export const PropertiesAdmin: React.FC = () => {
                                           />
                                       </div>
                                       <div>
-                                          <label className="label">Price ($)</label>
+                                          <label className="label">Price ({CURRENCY_SYMBOL})</label>
                                           <input 
                                             type="number" className="input-field" 
                                             value={formData.price} onChange={e => setFormData({...formData, price: Number(e.target.value)})} 
@@ -522,7 +528,7 @@ export const PropertiesAdmin: React.FC = () => {
                                           <label className="label">Country</label>
                                           <input 
                                             type="text" className="input-field" 
-                                            placeholder="USA, UK, etc."
+                                            placeholder="India, UK, etc."
                                             value={formData.location?.country} 
                                             onChange={e => setFormData({...formData, location: {...formData.location!, country: e.target.value}})} 
                                           />
