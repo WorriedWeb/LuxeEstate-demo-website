@@ -345,9 +345,8 @@ app.get('/api/dashboard', async (req, res) => {
 });
 
 // ---- Export Express app for Vercel ----
-export default function handler(req, res) {
-  return app(req, res);
-}
+export default app;
+
 
 // ---- Local dev server (only when running locally) ----
 if (!process.env.VERCEL) {
