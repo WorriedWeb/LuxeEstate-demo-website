@@ -5,8 +5,10 @@ import cors from 'cors';
 import bodyParser from 'body-parser';
 import { Property, User, Agent, Lead, BlogPost } from './models.js';
 
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+    
 
 // --- CORS Configuration ---
 // Allows requests from the defined FRONTEND_URL or falls back to accepting all (for dev/tools)
@@ -342,14 +344,14 @@ app.get('/api/dashboard', async (req, res) => {
     }
 });
 
-// --- VERCEL EXPORT ---
-// This is crucial for Vercel to turn this Express app into a serverless function
-export default app;
+// ---- Export Express app for Vercel ----
+export default function handler(req, res) {
+  return app(req, res);
+}
 
-// --- LOCAL SERVER ---
-// Only listen on port if running locally (not in Vercel environment)
-if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-    app.listen(PORT, () => {
-        console.log(`Development Server running on http://localhost:${PORT}`);
-    });
+// ---- Local dev server (only when running locally) ----
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Local server running on http://localhost:${PORT}`);
+  });
 }
